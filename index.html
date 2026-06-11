@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GmbH-Buchhaltung (SKR03)</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --ink:#1c2733; --mut:#67788a;
+    --line:#dde4ec; --acc:#1f6feb; --acc2:#0b4fb3; --ok:#1a7f37; --warn:#b35900; --err:#c62828;
+    --soll:#0b6e4f; --haben:#8a4600;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#15212e;color:#fff;padding:10px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0;white-space:nowrap}
+  header select,header button{font:inherit;padding:5px 9px;border-radius:6px;border:1px solid #3a4a5c;background:#22354a;color:#fff}
+  header button{cursor:pointer}
+  header button:hover{background:#2d4660}
+  nav{display:flex;gap:4px;flex-wrap:wrap;background:#1b2a3b;padding:6px 14px}
+  nav button{font:inherit;padding:7px 14px;border:0;border-radius:7px 7px 0 0;background:transparent;color:#aebccd;cursor:pointer}
+  nav button.active{background:var(--bg);color:var(--ink);font-weight:600}
+  main{max-width:1240px;margin:0 auto;padding:18px}
+  section.tab{display:none}
+  section.tab.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+  .card h2{margin:0 0 12px;font-size:17px}
+  .card h3{margin:18px 0 8px;font-size:15px}
+  .grid{display:grid;gap:10px 14px}
+  .g6{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  label{display:block;font-size:12.5px;color:var(--mut);margin-bottom:3px}
+  input,select,textarea{font:inherit;width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid #bcd4f7;border-color:var(--acc)}
+  .btn{display:inline-block;font:inherit;padding:8px 16px;border:0;border-radius:7px;background:var(--acc);color:#fff;cursor:pointer}
+  .btn:hover{background:var(--acc2)}
+  .btn.sec{background:#e7edf4;color:var(--ink)}
+  .btn.sec:hover{background:#d8e1ec}
+  .btn.warn{background:var(--warn)} .btn.err{background:var(--err)}
+  .btn.mini{padding:3px 9px;font-size:12.5px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#eef2f7;font-weight:600;position:sticky;top:0}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.sum td{font-weight:700;border-top:2px solid var(--ink);background:#f4f7fb}
+  tr.grp td{font-weight:600;background:#f8fafc;color:#33465c}
+  .neg{color:var(--err)}
+  .pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11.5px;background:#e7edf4}
+  .pill.lock{background:#fbe9d6;color:var(--warn)}
+  .pill.storno{background:#fde3e3;color:var(--err)}
+  .hint{font-size:12.5px;color:var(--mut)}
+  .msg{padding:9px 12px;border-radius:7px;margin:10px 0;font-size:13.5px;display:none}
+  .msg.ok{display:block;background:#e3f3e8;color:var(--ok)}
+  .msg.err{display:block;background:#fde3e3;color:var(--err)}
+  .flex{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+  .flex>div{min-width:120px}
+  .right{margin-left:auto}
+  .scroll{overflow-x:auto}
+  .banner{background:#fff6e0;border:1px solid #eed9a0;border-radius:8px;padding:9px 13px;margin-bottom:14px;font-size:13.5px}
+  @media print{
+    header,nav,.noprint,.banner{display:none!important}
+    body{background:#fff}
+    main{max-width:none;padding:0}
+    .card{border:0;padding:0}
+    section.tab{display:none} section.tab.active{display:block}
+    th{position:static}
+  }
+</style>
+</head>
+<body>
+
+<header class="noprint">
+  <h1>📒 GmbH-Buchhaltung <span style="font-weight:400;font-size:13px;opacity:.7">SKR03</span></h1>
+  <select id="mandantSelect" title="Mandant wechseln"></select>
+  <button onclick="mandantNeu()">+ Mandant</button>
+  <span id="kopfInfo" style="font-size:12.5px;opacity:.75;margin-left:auto"></span>
+</header>
+
+<nav class="noprint">
+  <button data-tab="buchen" class="active">Buchen</button>
+  <button data-tab="journal">Journal</button>
+  <button data-tab="susa">SuSa</button>
+  <button data-tab="bwa">BWA</button>
+  <button data-tab="ustva">UStVA</button>
+  <button data-tab="abschluss">GuV / Bilanz</button>
+  <button data-tab="konten">Konten</button>
+  <button data-tab="extras">Backup &amp; Mehr</button>
+</nav>
+
+<main>
+<div id="backupBanner" class="banner" style="display:none"></div>
+
+<!-- ============ BUCHEN ============ -->
+<section class="tab active" id="tab-buchen">
+  <div class="card">
+    <h2 id="buchenTitel">Neue Buchung</h2>
+    <div class="grid g6">
+      <div><label>Datum</label><input type="date" id="bDatum"></div>
+      <div><label>Belegnummer</label><input id="bBeleg" placeholder="z. B. 2026-001"></div>
+      <div style="grid-column:span 2"><label>Buchungstext</label><input id="bText" placeholder="z. B. Miete Whg. EG Juni 2026"></div>
+      <div><label>Betrag (brutto) €</label><input id="bBetrag" placeholder="0,00" inputmode="decimal"></div>
+      <div><label>Steuerschlüssel</label><select id="bSteuer"></select></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:10px">
+      <div><label>Sollkonto</label><input id="bSoll" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
+      <div><label>Habenkonto</label><input id="bHaben" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
+    </div>
+    <datalist id="kontenListe"></datalist>
+    <p class="hint">Konvention: <b>Vorsteuer</b>-Schlüssel bei Eingangsrechnungen (Aufwand im Soll, z. B. „4801 an 1200“) – Netto wird automatisch herausgerechnet und die Vorsteuer auf 1576/1571 gebucht. <b>Umsatzsteuer</b>-Schlüssel bei Erlösen (z. B. „1200 an 8400“) – USt landet auf 1776/1771. Steuerfreie Vermietung (§ 4 Nr. 12 UStG): ohne Steuerschlüssel auf 8110 buchen.</p>
+    <div class="msg" id="bMsg"></div>
+    <button class="btn" id="bSpeichern" onclick="buchungSpeichern()">Buchen (Strg+Enter)</button>
+    <button class="btn sec" id="bAbbruch" style="display:none" onclick="bearbeitenAbbrechen()">Abbrechen</button>
+  </div>
+  <div class="card">
+    <h2>Letzte Buchungen</h2>
+    <div class="scroll" id="letzteBuchungen"></div>
+  </div>
+</section>
+
+<!-- ============ JOURNAL ============ -->
+<section class="tab" id="tab-journal">
+  <div class="card">
+    <h2>Buchungsjournal</h2>
+    <div class="flex noprint">
+      <div><label>Jahr</label><select id="jJahr"></select></div>
+      <div style="flex:1;min-width:200px"><label>Suche (Text / Beleg / Konto)</label><input id="jSuche" placeholder="filtern…"></div>
+      <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
+      <button class="btn sec" onclick="exportJournalCsv()">⬇ CSV</button>
+    </div>
+    <div class="scroll" id="journalTabelle" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ SUSA ============ -->
+<section class="tab" id="tab-susa">
+  <div class="card">
+    <h2>Summen- und Saldenliste</h2>
+    <div class="flex noprint">
+      <div><label>Von</label><input type="date" id="sVon"></div>
+      <div><label>Bis</label><input type="date" id="sBis"></div>
+      <button class="btn" onclick="renderSusa()">Anzeigen</button>
+      <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
+    </div>
+    <div class="scroll" id="susaTabelle" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ BWA ============ -->
+<section class="tab" id="tab-bwa">
+  <div class="card">
+    <h2>Betriebswirtschaftliche Auswertung</h2>
+    <div class="flex noprint">
+      <div><label>Jahr</label><select id="bwaJahr"></select></div>
+      <button class="btn" onclick="renderBwa()">Anzeigen</button>
+      <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
+    </div>
+    <div class="scroll" id="bwaTabelle" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ USTVA ============ -->
+<section class="tab" id="tab-ustva">
+  <div class="card">
+    <h2>Umsatzsteuer-Voranmeldung – Kennzahlen</h2>
+    <div class="flex noprint">
+      <div><label>Jahr</label><select id="uJahr"></select></div>
+      <div><label>Zeitraum</label><select id="uZeitraum"></select></div>
+      <button class="btn" onclick="renderUstva()">Berechnen</button>
+      <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
+    </div>
+    <p class="hint">Die Werte überträgst du manuell in „Mein ELSTER“. Bemessungsgrundlagen dort auf volle Euro abrunden (Spalte „ELSTER“).</p>
+    <div class="scroll" id="ustvaTabelle" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ ABSCHLUSS ============ -->
+<section class="tab" id="tab-abschluss">
+  <div class="card noprint" style="padding:12px 18px">
+    <div class="flex">
+      <div><label>Geschäftsjahr (GuV)</label><select id="aJahr"></select></div>
+      <div><label>Bilanzstichtag</label><input type="date" id="aStichtag"></div>
+      <button class="btn" onclick="renderAbschluss()">Anzeigen</button>
+      <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
+    </div>
+  </div>
+  <div class="card"><h2 id="guvTitel">Gewinn- und Verlustrechnung</h2><div class="scroll" id="guvTabelle"></div></div>
+  <div class="card"><h2 id="bilanzTitel">Bilanz</h2><div class="scroll" id="bilanzTabelle"></div></div>
+</section>
+
+<!-- ============ KONTEN ============ -->
+<section class="tab" id="tab-konten">
+  <div class="card">
+    <h2>Kontenplan (an SKR03 angelehnt)</h2>
+    <p class="hint">Konten lassen sich frei anpassen. Vor einem DATEV-Export Kontonummern mit dem offiziellen SKR03 deines Steuerberaters abgleichen.</p>
+    <div class="flex noprint">
+      <div><label>Nr.</label><input id="kNr" style="width:90px"></div>
+      <div style="flex:1;min-width:220px"><label>Bezeichnung</label><input id="kName"></div>
+      <div><label>Typ</label><select id="kTyp">
+        <option value="AKTIV">Aktiv (Bilanz)</option><option value="PASSIV">Passiv (Bilanz)</option>
+        <option value="AUFWAND">Aufwand (GuV)</option><option value="ERTRAG">Ertrag (GuV)</option>
+      </select></div>
+      <div><label>Gruppe / BWA</label><select id="kGruppe"></select></div>
+      <div><label>UStVA-Kz</label><select id="kKz"><option value="">–</option><option value="48">48 steuerfrei o. VSt-Abzug</option><option value="41">41 innergem. Lieferung</option></select></div>
+      <button class="btn" onclick="kontoSpeichern()">Speichern</button>
+    </div>
+    <div class="msg" id="kMsg"></div>
+    <div class="scroll" id="kontenTabelle" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ============ EXTRAS ============ -->
+<section class="tab" id="tab-extras">
+  <div class="card">
+    <h2>Datensicherung</h2>
+    <p class="hint">Alle Daten liegen <b>nur lokal in diesem Browser</b> (localStorage). Regelmäßig exportieren – mindestens nach jeder Buchungssitzung – und die JSON-Datei sicher ablegen (GoBD: maschinell auswertbare Aufbewahrung).</p>
+    <button class="btn" onclick="exportJson()">⬇ Komplett-Backup (JSON, alle Mandanten)</button>
+    <label class="btn sec" style="cursor:pointer">⬆ Backup einspielen<input type="file" accept=".json" style="display:none" onchange="importJson(this)"></label>
+  </div>
+  <div class="card">
+    <h2>Festschreibung (GoBD)</h2>
+    <p class="hint">Festgeschriebene Buchungen können nicht mehr geändert oder gelöscht werden – nur noch per Stornobuchung korrigiert. Spätestens mit Abgabe der UStVA für den jeweiligen Zeitraum festschreiben.</p>
+    <div class="flex">
+      <div><label>Festschreiben bis einschließlich</label><input type="date" id="festDatum"></div>
+      <button class="btn warn" onclick="festschreiben()">🔒 Festschreiben</button>
+      <span class="hint" id="festInfo"></span>
+    </div>
+    <div class="msg" id="xMsg"></div>
+  </div>
+  <div class="card">
+    <h2>DATEV-Export (Beta)</h2>
+    <p class="hint">Buchungsstapel im DATEV-Format (EXTF, CSV) für die Übergabe an den Steuerberater. Vor produktiver Nutzung einen Testimport beim Steuerberater machen lassen.</p>
+    <div class="flex">
+      <div><label>Jahr</label><select id="dJahr"></select></div>
+      <div><label>Beraternummer</label><input id="dBerater" style="width:110px"></div>
+      <div><label>Mandantennummer</label><input id="dMandant" style="width:110px"></div>
+      <button class="btn sec" onclick="exportDatev()">⬇ DATEV-CSV</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Mandant</h2>
+    <div class="flex">
+      <div style="flex:1;min-width:200px"><label>Name</label><input id="mName"></div>
+      <button class="btn sec" onclick="mandantUmbenennen()">Umbenennen</button>
+      <button class="btn err" onclick="mandantLoeschen()">Mandant löschen…</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+'use strict';
+/* =================== Stammdaten =================== */
+const LS_KEY = 'gmbh-fibu-v1';
+
+const STEUER = {
+  '':      {label:'ohne Steuer / steuerfrei', satz:0},
+  'VSt19': {label:'19 % Vorsteuer (Eingang)',  satz:19, kto:'1576', seite:'S'},
+  'VSt7':  {label:'7 % Vorsteuer (Eingang)',   satz:7,  kto:'1571', seite:'S'},
+  'USt19': {label:'19 % Umsatzsteuer (Erlös)', satz:19, kto:'1776', seite:'H'},
+  'USt7':  {label:'7 % Umsatzsteuer (Erlös)',  satz:7,  kto:'1771', seite:'H'},
+};
+const DATEV_BU = {'VSt19':'9','VSt7':'8','USt19':'3','USt7':'2'};
+
+const BWA_KAT = [
+  {id:'erl',  name:'Umsatzerlöse (Mieten u. a.)', typ:'E'},
+  {id:'sbe',  name:'Sonstige betriebliche Erträge', typ:'E'},
+  {id:'bet',  name:'Beteiligungs- und Zinserträge', typ:'E', fin:true},
+  {id:'pers', name:'Personalkosten'},
+  {id:'raum', name:'Raum- und Grundstückskosten'},
+  {id:'vers', name:'Versicherungen / Beiträge'},
+  {id:'kfz',  name:'Kfz-Kosten'},
+  {id:'werb', name:'Werbe- / Reisekosten'},
+  {id:'rep',  name:'Reparaturen / Instandhaltung'},
+  {id:'afa',  name:'Abschreibungen'},
+  {id:'sons', name:'Sonstige Kosten'},
+  {id:'zins', name:'Zinsen und ähnliche Aufwendungen', fin:true},
+  {id:'steu', name:'Steuern vom Einkommen u. Ertrag', steuern:true},
+];
+const GRUPPEN = {AV:'Anlagevermögen', UV:'Umlaufvermögen', EK:'Eigenkapital', RST:'Rückstellungen', VB:'Verbindlichkeiten', SV:'Saldenvorträge'};
+
+/* nr, name, typ, gruppe(Bilanz) bzw. bwa(GuV), ustkz */
+const KONTEN_VORLAGE = [
+  ['0085','Grund und Boden (bebaute Grundstücke)','AKTIV','AV'],
+  ['0090','Geschäftsbauten','AKTIV','AV'],
+  ['0140','Wohnbauten','AKTIV','AV'],
+  ['0410','Geschäftsausstattung','AKTIV','AV'],
+  ['0480','Geringwertige Wirtschaftsgüter (GWG)','AKTIV','AV'],
+  ['0500','Beteiligungen','AKTIV','AV'],
+  ['0525','Wertpapiere des Anlagevermögens','AKTIV','AV'],
+  ['0550','Ausleihungen / Darlehen an verbundene Unternehmen','AKTIV','AV'],
+  ['0630','Verbindlichkeiten gegenüber Kreditinstituten (Darlehen)','PASSIV','VB'],
+  ['0755','Verbindlichkeiten gegenüber Gesellschaftern','PASSIV','VB'],
+  ['0800','Gezeichnetes Kapital (Stammkapital)','PASSIV','EK'],
+  ['0840','Kapitalrücklage','PASSIV','EK'],
+  ['0860','Gewinnvortrag vor Verwendung','PASSIV','EK'],
+  ['0868','Verlustvortrag vor Verwendung','PASSIV','EK'],
+  ['0955','Steuerrückstellungen','PASSIV','RST'],
+  ['0970','Sonstige Rückstellungen','PASSIV','RST'],
+  ['1000','Kasse','AKTIV','UV'],
+  ['1200','Bank 1','AKTIV','UV'],
+  ['1210','Bank 2','AKTIV','UV'],
+  ['1360','Geldtransit','AKTIV','UV'],
+  ['1400','Forderungen aus Lieferungen und Leistungen (Mieten)','AKTIV','UV'],
+  ['1500','Sonstige Vermögensgegenstände','AKTIV','UV'],
+  ['1525','Gestellte Kautionen','AKTIV','UV'],
+  ['1545','Forderungen gegen Gesellschafter','AKTIV','UV'],
+  ['1571','Abziehbare Vorsteuer 7 %','AKTIV','UV'],
+  ['1576','Abziehbare Vorsteuer 19 %','AKTIV','UV'],
+  ['1600','Verbindlichkeiten aus Lieferungen und Leistungen','PASSIV','VB'],
+  ['1700','Sonstige Verbindlichkeiten','PASSIV','VB'],
+  ['1759','Erhaltene Kautionen (Mieter)','PASSIV','VB'],
+  ['1771','Umsatzsteuer 7 %','PASSIV','VB'],
+  ['1776','Umsatzsteuer 19 %','PASSIV','VB'],
+  ['1780','Umsatzsteuer-Vorauszahlungen','PASSIV','VB'],
+  ['2100','Zinsen und ähnliche Aufwendungen','AUFWAND','zins'],
+  ['2110','Zinsaufwand für langfristige Bankdarlehen','AUFWAND','zins'],
+  ['2200','Körperschaftsteuer','AUFWAND','steu'],
+  ['2208','Solidaritätszuschlag','AUFWAND','steu'],
+  ['2600','Erträge aus Beteiligungen','ERTRAG','bet'],
+  ['2650','Sonstige Zinsen und ähnliche Erträge','ERTRAG','bet'],
+  ['2700','Sonstige Erträge','ERTRAG','sbe'],
+  ['4120','Gehälter','AUFWAND','pers'],
+  ['4130','Gesetzliche soziale Aufwendungen','AUFWAND','pers'],
+  ['4210','Miete / Pacht','AUFWAND','raum'],
+  ['4230','Grundbesitzabgaben / Grundsteuer','AUFWAND','raum'],
+  ['4240','Gas, Strom, Wasser','AUFWAND','raum'],
+  ['4250','Reinigung','AUFWAND','raum'],
+  ['4260','Instandhaltung betrieblicher Räume','AUFWAND','rep'],
+  ['4320','Gewerbesteuer','AUFWAND','steu'],
+  ['4360','Versicherungen','AUFWAND','vers'],
+  ['4380','Beiträge (IHK u. a.)','AUFWAND','vers'],
+  ['4500','Fahrzeugkosten','AUFWAND','kfz'],
+  ['4600','Werbekosten','AUFWAND','werb'],
+  ['4650','Bewirtungskosten','AUFWAND','werb'],
+  ['4670','Reisekosten','AUFWAND','werb'],
+  ['4800','Reparaturen und Instandhaltung (Anlagen/BGA)','AUFWAND','rep'],
+  ['4801','Reparaturen und Instandhaltung Gebäude','AUFWAND','rep'],
+  ['4820','Abschreibungen auf immaterielle Vermögensgegenstände','AUFWAND','afa'],
+  ['4830','Abschreibungen auf Sachanlagen','AUFWAND','afa'],
+  ['4831','Abschreibungen auf Gebäude','AUFWAND','afa'],
+  ['4855','Sofortabschreibung GWG','AUFWAND','afa'],
+  ['4900','Sonstige betriebliche Aufwendungen','AUFWAND','sons'],
+  ['4909','Verwaltungskosten (Hausverwaltung, Fremdleistungen)','AUFWAND','sons'],
+  ['4910','Porto','AUFWAND','sons'],
+  ['4920','Telefon / Internet','AUFWAND','sons'],
+  ['4930','Bürobedarf','AUFWAND','sons'],
+  ['4940','Zeitschriften, Bücher','AUFWAND','sons'],
+  ['4950','Rechts- und Beratungskosten','AUFWAND','sons'],
+  ['4955','Buchführungskosten','AUFWAND','sons'],
+  ['4957','Abschluss- und Prüfungskosten','AUFWAND','sons'],
+  ['4970','Nebenkosten des Geldverkehrs (Kontoführung)','AUFWAND','sons'],
+  ['8100','Steuerfreie Umsätze § 4 Nr. 8 ff. UStG','ERTRAG','erl','48'],
+  ['8110','Steuerfreie Umsätze § 4 Nr. 12 UStG (Vermietung/Verpachtung)','ERTRAG','erl','48'],
+  ['8300','Erlöse 7 % USt','ERTRAG','erl'],
+  ['8400','Erlöse 19 % USt','ERTRAG','erl'],
+  ['9000','Saldenvorträge (Eröffnungsbilanz-Gegenkonto)','PASSIV','SV'],
+];
+
+/* =================== Datenhaltung =================== */
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'+Math.random().toString(36).slice(2)); }
+function kontenNeu(){ return KONTEN_VORLAGE.map(k=>({nr:k[0],name:k[1],typ:k[2],gruppe:k[3],ustkz:k[4]||''})); }
+function mandantNeuObj(name){ return {id:uid(), name, konten:kontenNeu(), buchungen:[], festBis:null, belegNr:1, datev:{berater:'',mandant:''}}; }
+
+let db = null;
+try{ db = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+if(!db || !Array.isArray(db.mandanten) || !db.mandanten.length){
+  db = {version:1, aktiv:null, mandanten:[mandantNeuObj('Immobilien VV GmbH'), mandantNeuObj('Holding GmbH')], letztesBackup:null};
+  db.aktiv = db.mandanten[0].id;
+}
+function speichern(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function m(){ return db.mandanten.find(x=>x.id===db.aktiv) || db.mandanten[0]; }
+function konto(nr){ return m().konten.find(k=>k.nr===nr); }
+
+/* =================== Helfer =================== */
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function eur(c){ // Cent -> "1.234,56"
+  const v = (c/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return c<0 ? `<span class="neg">${v}</span>` : v;
+}
+function eurTxt(c){ return (c/100).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseBetrag(s){
+  s = String(s||'').trim().replace(/€|\s/g,'');
+  if(!s) return null;
+  s = s.replace(/\./g,'').replace(',','.');
+  const v = Number(s);
+  if(!isFinite(v)) return null;
+  return Math.round(v*100);
+}
+function heute(){ return new Date().toISOString().slice(0,10); }
+function dDE(iso){ return iso ? iso.split('-').reverse().join('.') : ''; }
+function jahre(){ // alle Jahre mit Buchungen + aktuelles
+  const s = new Set([new Date().getFullYear()]);
+  m().buchungen.forEach(b=>s.add(+b.datum.slice(0,4)));
+  return [...s].sort((a,b)=>b-a);
+}
+function msg(id, text, ok){
+  const el = $(id); el.textContent = text; el.className = 'msg ' + (ok?'ok':'err');
+  if(ok) setTimeout(()=>{ el.className='msg'; }, 4000);
+}
+
+/* =================== Buchungslogik =================== */
+function buchungsZeilen(soll, haben, brutto, key){
+  const st = STEUER[key];
+  if(!st || !st.satz) return {zeilen:[{kto:soll,s:brutto,h:0},{kto:haben,s:0,h:brutto}], netto:brutto, steuer:0};
+  const steuer = Math.round(brutto * st.satz / (100+st.satz));
+  const netto = brutto - steuer;
+  if(st.seite==='S') // Vorsteuer: Aufwand netto + VSt im Soll, Gegenkonto brutto im Haben
+    return {zeilen:[{kto:soll,s:netto,h:0},{kto:st.kto,s:steuer,h:0},{kto:haben,s:0,h:brutto}], netto, steuer};
+  // Umsatzsteuer: Soll brutto, Erlös netto + USt im Haben
+  return {zeilen:[{kto:soll,s:brutto,h:0},{kto:haben,s:0,h:netto},{kto:st.kto,s:0,h:steuer}], netto, steuer};
+}
+
+let bearbeiteId = null;
+
+function buchungSpeichern(){
+  const datum = $('bDatum').value, beleg = $('bBeleg').value.trim(), text = $('bText').value.trim();
+  const brutto = parseBetrag($('bBetrag').value), key = $('bSteuer').value;
+  const soll = kontoAusEingabe($('bSoll').value), haben = kontoAusEingabe($('bHaben').value);
+  if(!datum) return msg('bMsg','Bitte Datum angeben.');
+  if(m().festBis && datum <= m().festBis) return msg('bMsg','Zeitraum ist bis '+dDE(m().festBis)+' festgeschrieben – Buchung in diesem Zeitraum nicht mehr möglich.');
+  if(!text) return msg('bMsg','Bitte Buchungstext angeben.');
+  if(brutto===null || brutto<=0) return msg('bMsg','Bitte gültigen Betrag > 0 angeben (Format 1.234,56).');
+  if(!soll) return msg('bMsg','Sollkonto nicht gefunden.');
+  if(!haben) return msg('bMsg','Habenkonto nicht gefunden.');
+  if(soll===haben) return msg('bMsg','Soll- und Habenkonto müssen unterschiedlich sein.');
+  const st = STEUER[key];
+  if(st && st.satz && !konto(st.kto)) return msg('bMsg','Steuerkonto '+st.kto+' fehlt im Kontenplan.');
+
+  const {zeilen, netto, steuer} = buchungsZeilen(soll, haben, brutto, key);
+  if(bearbeiteId){
+    const b = m().buchungen.find(x=>x.id===bearbeiteId);
+    if(!b || b.fest || b.storniert) return msg('bMsg','Buchung kann nicht mehr geändert werden.');
+    Object.assign(b, {datum, beleg, text, soll, haben, brutto, key, netto, steuer, zeilen});
+    bearbeitenAbbrechen();
+    msg('bMsg','Buchung aktualisiert.', true);
+  } else {
+    m().buchungen.push({id:uid(), datum, beleg, text, soll, haben, brutto, key, netto, steuer, zeilen,
+                        fest:false, storniert:false, stornoVon:null, erstellt:new Date().toISOString()});
+    m().belegNr++;
+    msg('bMsg','Gebucht: '+soll+' an '+haben+', '+eurTxt(brutto)+' €', true);
+    $('bText').value=''; $('bBetrag').value=''; $('bBeleg').value = belegVorschlag();
+    $('bText').focus();
+  }
+  speichern(); renderLetzte();
+}
+
+function kontoAusEingabe(v){
+  v = String(v||'').trim();
+  if(!v) return null;
+  const nr = v.split(' ')[0];
+  if(konto(nr)) return nr;
+  if(konto(v)) return v;
+  const t = m().konten.find(k=>k.name.toLowerCase().includes(v.toLowerCase()));
+  return t ? t.nr : null;
+}
+function belegVorschlag(){
+  return new Date().getFullYear() + '-' + String(m().belegNr).padStart(3,'0');
+}
+
+function storno(id){
+  const b = m().buchungen.find(x=>x.id===id);
+  if(!b || b.storniert) return;
+  if(!confirm('Stornobuchung zu Beleg „'+(b.beleg||'?')+'“ erzeugen?')) return;
+  const datum = (m().festBis && b.datum <= m().festBis) ? heute() : b.datum;
+  m().buchungen.push({
+    id:uid(), datum, beleg:'ST-'+(b.beleg||''), text:'Storno: '+b.text,
+    soll:b.haben, haben:b.soll, brutto:b.brutto, key:b.key, netto:-b.netto, steuer:-b.steuer,
+    zeilen: b.zeilen.map(z=>({kto:z.kto, s:z.h, h:z.s})),
+    fest:false, storniert:false, stornoVon:b.id, erstellt:new Date().toISOString()
+  });
+  b.storniert = true;
+  speichern(); renderLetzte(); renderJournal();
+}
+function loeschen(id){
+  const b = m().buchungen.find(x=>x.id===id);
+  if(!b || b.fest) return;
+  if(!confirm('Buchung endgültig löschen? (Nur zulässig, solange nicht festgeschrieben. Nach Festschreibung: Storno.)')) return;
+  m().buchungen = m().buchungen.filter(x=>x.id!==id);
+  speichern(); renderLetzte(); renderJournal();
+}
+function bearbeiten(id){
+  const b = m().buchungen.find(x=>x.id===id);
+  if(!b || b.fest || b.storniert) return;
+  bearbeiteId = id;
+  $('buchenTitel').textContent = 'Buchung bearbeiten (Beleg '+(b.beleg||'?')+')';
+  $('bDatum').value=b.datum; $('bBeleg').value=b.beleg; $('bText').value=b.text;
+  $('bBetrag').value=eurTxt(b.brutto); $('bSteuer').value=b.key;
+  $('bSoll').value=b.soll+' '+(konto(b.soll)?.name||''); $('bHaben').value=b.haben+' '+(konto(b.haben)?.name||'');
+  $('bSpeichern').textContent='Änderung speichern'; $('bAbbruch').style.display='inline-block';
+  zeigeTab('buchen');
+}
+function bearbeitenAbbrechen(){
+  bearbeiteId = null;
+  $('buchenTitel').textContent='Neue Buchung';
+  $('bSpeichern').textContent='Buchen (Strg+Enter)'; $('bAbbruch').style.display='none';
+  $('bText').value=''; $('bBetrag').value=''; $('bSoll').value=''; $('bHaben').value='';
+  $('bDatum').value=heute(); $('bBeleg').value=belegVorschlag(); $('bSteuer').value='';
+}
+function kopieren(id){
+  const b = m().buchungen.find(x=>x.id===id);
+  if(!b) return;
+  $('bDatum').value=heute(); $('bBeleg').value=belegVorschlag(); $('bText').value=b.text;
+  $('bBetrag').value=eurTxt(b.brutto); $('bSteuer').value=b.key;
+  $('bSoll').value=b.soll+' '+(konto(b.soll)?.name||''); $('bHaben').value=b.haben+' '+(konto(b.haben)?.name||'');
+  zeigeTab('buchen'); $('bText').focus();
+}
+
+/* =================== Auswertungs-Helfer =================== */
+function bewegungen(von, bis){ // Map kontoNr -> {s,h} im Zeitraum (inkl. Grenzen)
+  const map = {};
+  for(const b of m().buchungen){
+    if(von && b.datum < von) continue;
+    if(bis && b.datum > bis) continue;
+    for(const z of b.zeilen){
+      const e = map[z.kto] || (map[z.kto] = {s:0,h:0});
+      e.s += z.s; e.h += z.h;
+    }
+  }
+  return map;
+}
+function saldo(k, bew){ // Saldo in "natürlicher" Richtung des Kontotyps, positiv = normal
+  const e = bew[k.nr] || {s:0,h:0};
+  return (k.typ==='AKTIV'||k.typ==='AUFWAND') ? e.s-e.h : e.h-e.s;
+}
+
+/* =================== Rendering: Tabs =================== */
+function zeigeTab(name){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('active', s.id==='tab-'+name));
+  if(name==='journal') renderJournal();
+  if(name==='susa') renderSusa();
+  if(name==='bwa') renderBwa();
+  if(name==='ustva') renderUstva();
+  if(name==='abschluss') renderAbschluss();
+  if(name==='konten') renderKonten();
+  if(name==='extras') renderExtras();
+  if(name==='buchen') renderLetzte();
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>zeigeTab(b.dataset.tab));
+
+/* =================== Buchen-Tab =================== */
+function renderBuchenForm(){
+  $('bSteuer').innerHTML = Object.entries(STEUER).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  $('kontenListe').innerHTML = m().konten.map(k=>`<option value="${k.nr} ${esc(k.name)}">`).join('');
+  $('bDatum').value = heute();
+  $('bBeleg').value = belegVorschlag();
+}
+function buchungZeile(b){
+  const status = (b.fest?'<span class="pill lock">🔒 fest</span> ':'') +
+                 (b.storniert?'<span class="pill storno">storniert</span> ':'') +
+                 (b.stornoVon?'<span class="pill">Storno-Beleg</span> ':'');
+  const akt = [];
+  akt.push(`<button class="btn mini sec" onclick="kopieren('${b.id}')" title="Als Vorlage übernehmen">↻</button>`);
+  if(!b.fest && !b.storniert) akt.push(`<button class="btn mini sec" onclick="bearbeiten('${b.id}')">✎</button>`);
+  if(!b.storniert && !b.stornoVon) akt.push(`<button class="btn mini warn" onclick="storno('${b.id}')" title="Storno">⤺</button>`);
+  if(!b.fest) akt.push(`<button class="btn mini err" onclick="loeschen('${b.id}')" title="Löschen">✕</button>`);
+  return `<tr${b.storniert?' style="opacity:.55;text-decoration:line-through"':''}>
+    <td>${dDE(b.datum)}</td><td>${esc(b.beleg)}</td><td>${esc(b.text)} ${status}</td>
+    <td>${b.soll}</td><td>${b.haben}</td>
+    <td class="num">${eur(b.brutto)}</td><td>${b.key||'–'}</td>
+    <td class="noprint" style="white-space:nowrap">${akt.join(' ')}</td></tr>`;
+}
+function renderLetzte(){
+  const bs = [...m().buchungen].sort((a,b)=> (b.datum+b.erstellt).localeCompare(a.datum+a.erstellt)).slice(0,12);
+  $('letzteBuchungen').innerHTML = bs.length ? tabelleBuchungen(bs) : '<p class="hint">Noch keine Buchungen. Tipp: Eröffnungsbilanzwerte einmalig gegen Konto 9000 (Saldenvorträge) einbuchen, z. B. „1200 Bank an 9000“.</p>';
+}
+function tabelleBuchungen(bs){
+  return `<table><thead><tr><th>Datum</th><th>Beleg</th><th>Text</th><th>Soll</th><th>Haben</th>
+    <th class="num">Betrag €</th><th>St.</th><th class="noprint"></th></tr></thead>
+    <tbody>${bs.map(buchungZeile).join('')}</tbody></table>`;
+}
+
+/* =================== Journal =================== */
+function renderJournal(){
+  fuelleJahre('jJahr');
+  const jahr = $('jJahr').value, q = $('jSuche').value.trim().toLowerCase();
+  let bs = m().buchungen.filter(b=>b.datum.startsWith(jahr));
+  if(q) bs = bs.filter(b=> (b.text+' '+b.beleg+' '+b.soll+' '+b.haben).toLowerCase().includes(q));
+  bs.sort((a,b)=> (a.datum+a.erstellt).localeCompare(b.datum+b.erstellt));
+  const sum = bs.filter(b=>!b.storniert).reduce((s,b)=>s+b.brutto,0);
+  $('journalTabelle').innerHTML = tabelleBuchungen(bs) +
+    `<p class="hint">${bs.length} Buchungen, Bruttosumme (ohne stornierte): ${eurTxt(sum)} €</p>`;
+}
+$('jSuche') && ($('jSuche').oninput = ()=>renderJournal());
+function exportJournalCsv(){
+  const jahr = $('jJahr').value;
+  const bs = m().buchungen.filter(b=>b.datum.startsWith(jahr)).sort((a,b)=>a.datum.localeCompare(b.datum));
+  let csv = 'Datum;Beleg;Text;Soll;Haben;Brutto;Steuerschluessel;Netto;Steuer;Status\n';
+  for(const b of bs)
+    csv += [dDE(b.datum), b.beleg, '"'+b.text.replace(/"/g,'""')+'"', b.soll, b.haben,
+            eurTxt(b.brutto), b.key, eurTxt(b.netto), eurTxt(b.steuer),
+            b.storniert?'storniert':(b.fest?'festgeschrieben':'')].join(';') + '\n';
+  download('Journal_'+m().name.replace(/\W+/g,'_')+'_'+jahr+'.csv', '\uFEFF'+csv, 'text/csv');
+}
+
+/* =================== SuSa =================== */
+function renderSusa(){
+  const von = $('sVon').value, bis = $('sBis').value;
+  if(!von || !bis) return;
+  const eb = bewegungen(null, vortag(von));
+  const per = bewegungen(von, bis);
+  let html = `<p><b>${esc(m().name)}</b> – Summen- und Saldenliste ${dDE(von)} bis ${dDE(bis)}</p>
+  <table><thead><tr><th>Konto</th><th>Bezeichnung</th>
+  <th class="num">EB-Saldo</th><th class="num">Soll</th><th class="num">Haben</th><th class="num">Endsaldo</th><th>S/H</th></tr></thead><tbody>`;
+  let tS=0,tH=0;
+  for(const k of [...m().konten].sort((a,b)=>a.nr.localeCompare(b.nr))){
+    const e = eb[k.nr]||{s:0,h:0}, p = per[k.nr]||{s:0,h:0};
+    const ebS = e.s-e.h, end = ebS + p.s - p.h;
+    if(!ebS && !p.s && !p.h) continue;
+    tS += p.s; tH += p.h;
+    html += `<tr><td>${k.nr}</td><td>${esc(k.name)}</td>
+      <td class="num">${eur(Math.abs(ebS))}${ebS?(ebS>0?' S':' H'):''}</td>
+      <td class="num">${eur(p.s)}</td><td class="num">${eur(p.h)}</td>
+      <td class="num">${eur(Math.abs(end))}</td><td>${end?(end>0?'S':'H'):''}</td></tr>`;
+  }
+  html += `<tr class="sum"><td colspan="3">Summen</td><td class="num">${eur(tS)}</td><td class="num">${eur(tH)}</td><td colspan="2">${tS===tH?'✓ ausgeglichen':'⚠ Differenz '+eurTxt(tS-tH)+' €'}</td></tr>`;
+  $('susaTabelle').innerHTML = html + '</tbody></table>';
+}
+function vortag(iso){ const d = new Date(iso+'T12:00:00'); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+
+/* =================== BWA =================== */
+function renderBwa(){
+  fuelleJahre('bwaJahr');
+  const jahr = $('bwaJahr').value;
+  const mon = []; // 12 x Map kat -> cent
+  for(let i=1;i<=12;i++){
+    const mm = String(i).padStart(2,'0');
+    const bew = bewegungen(jahr+'-'+mm+'-01', jahr+'-'+mm+'-31');
+    const kat = {};
+    for(const k of m().konten){
+      if(k.typ!=='AUFWAND' && k.typ!=='ERTRAG') continue;
+      kat[k.gruppe] = (kat[k.gruppe]||0) + saldo(k, bew);
+    }
+    mon.push(kat);
+  }
+  const M = ['Jan','Feb','Mrz','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const zeile = (name, werte, klass='') => {
+    const sum = werte.reduce((a,b)=>a+b,0);
+    return `<tr class="${klass}"><td>${name}</td>${werte.map(v=>`<td class="num">${v?eur(v):''}</td>`).join('')}<td class="num"><b>${eur(sum)}</b></td></tr>`;
+  };
+  const get = id => mon.map(k=>k[id]||0);
+  const add = (a,b)=>a.map((v,i)=>v+b[i]);
+  const neg = a=>a.map(v=>-v);
+  let html = `<p><b>${esc(m().name)}</b> – BWA ${jahr} (Beträge in €)</p>
+  <table><thead><tr><th>Position</th>${M.map(x=>`<th class="num">${x}</th>`).join('')}<th class="num">Gesamt</th></tr></thead><tbody>`;
+  let betr = new Array(12).fill(0);
+  for(const kat of BWA_KAT.filter(k=>k.typ==='E' && !k.fin)){ const w=get(kat.id); betr=add(betr,w); html+=zeile(kat.name, w); }
+  html += zeile('= Betriebliche Erträge', betr, 'grp');
+  let kost = new Array(12).fill(0);
+  for(const kat of BWA_KAT.filter(k=>!k.typ && !k.fin && !k.steuern)){ const w=get(kat.id); kost=add(kost,w); html+=zeile(kat.name, w); }
+  html += zeile('= Gesamtkosten', kost, 'grp');
+  const bErg = add(betr, neg(kost));
+  html += zeile('= Betriebsergebnis', bErg, 'grp');
+  const finE = get('bet'), finA = get('zins');
+  html += zeile('Beteiligungs-/Zinserträge', finE);
+  html += zeile('Zinsaufwand', finA);
+  const vSt = add(bErg, add(finE, neg(finA)));
+  html += zeile('= Ergebnis vor Steuern', vSt, 'grp');
+  const st = get('steu');
+  html += zeile('Steuern vom Einkommen und Ertrag', st);
+  html += zeile('= Vorläufiges Ergebnis', add(vSt, neg(st)), 'sum');
+  $('bwaTabelle').innerHTML = html + '</tbody></table>';
+}
+
+/* =================== UStVA =================== */
+function renderUstva(){
+  fuelleJahre('uJahr');
+  const zr = $('uZeitraum');
+  if(!zr.options.length){
+    const M=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    zr.innerHTML = M.map((n,i)=>`<option value="M${i+1}">${n}</option>`).join('') +
+      ['I','II','III','IV'].map((q,i)=>`<option value="Q${i+1}">${q}. Quartal</option>`).join('') +
+      '<option value="J">Gesamtjahr</option>';
+    zr.value = 'M'+(new Date().getMonth()+1);
+  }
+  const jahr = $('uJahr').value, z = zr.value;
+  let m1=1, m2=12;
+  if(z[0]==='M'){ m1=m2=+z.slice(1); }
+  if(z[0]==='Q'){ m1=(+z.slice(1)-1)*3+1; m2=m1+2; }
+  const von = jahr+'-'+String(m1).padStart(2,'0')+'-01', bis = jahr+'-'+String(m2).padStart(2,'0')+'-31';
+
+  let n19=0,s19=0,n7=0,s7=0,vst=0,kz48=0,kz41=0;
+  for(const b of m().buchungen){
+    if(b.datum < von || b.datum > bis) continue;
+    if(b.key==='USt19'){ n19+=b.netto; s19+=b.steuer; }
+    if(b.key==='USt7'){ n7+=b.netto; s7+=b.steuer; }
+    if(b.key==='VSt19'||b.key==='VSt7'){ vst+=b.steuer; }
+    for(const zl of b.zeilen){
+      const k = konto(zl.kto);
+      if(!k || !k.ustkz) continue;
+      const betrag = zl.h - zl.s; // Ertragszugang positiv
+      if(k.ustkz==='48') kz48 += betrag;
+      if(k.ustkz==='41') kz41 += betrag;
+    }
+  }
+  const zahllast = s19+s7-vst;
+  const abr = c => Math.floor(c/100)*100; // auf volle Euro abrunden (für ELSTER), Ergebnis in Cent
+  const r = (kz,bez,bem,st,stFix) => `<tr><td><b>${kz}</b></td><td>${bez}</td>
+    <td class="num">${bem===null?'':eur(bem)}</td><td class="num">${bem===null?'':eurTxt(abr(bem))+' €'}</td>
+    <td class="num">${st===null?'':eur(st)}</td></tr>`;
+  let html = `<p><b>${esc(m().name)}</b> – UStVA ${z==='J'?'Jahr':dDE(von)+' – '+dDE(bis)} ${jahr}</p>
+  <table><thead><tr><th>Kz</th><th>Position</th><th class="num">Bemessungsgrundlage</th><th class="num">ELSTER (volle €)</th><th class="num">Steuer</th></tr></thead><tbody>`;
+  html += r('41','Innergemeinschaftliche Lieferungen (steuerfrei)', kz41, null);
+  html += r('48','Steuerfreie Umsätze ohne Vorsteuerabzug (u. a. § 4 Nr. 12 Vermietung)', kz48, null);
+  html += r('81','Steuerpflichtige Umsätze 19 %', n19, s19);
+  html += r('86','Steuerpflichtige Umsätze 7 %', n7, s7);
+  html += r('66','Vorsteuerbeträge aus Rechnungen', null, vst);
+  html += `<tr class="sum"><td><b>83</b></td><td>Verbleibende Zahllast (− = Erstattung)</td><td></td><td></td><td class="num">${eur(zahllast)}</td></tr>`;
+  html += '</tbody></table>';
+  html += `<p class="hint">Hinweis: Bei rein steuerfreier Vermietung (§ 4 Nr. 12 UStG) ohne Option nach § 9 UStG besteht i. d. R. keine UStVA-Pflicht – mit dem Finanzamt klären. Die Vorauszahlung anschließend buchen: „1780 an 1200“.</p>`;
+  $('ustvaTabelle').innerHTML = html;
+}
+
+/* =================== GuV / Bilanz =================== */
+function renderAbschluss(){
+  fuelleJahre('aJahr');
+  const jahr = $('aJahr').value;
+  if(!$('aStichtag').value || !$('aStichtag').value.startsWith(jahr)) $('aStichtag').value = jahr+'-12-31';
+  const stichtag = $('aStichtag').value;
+
+  /* ---- GuV (nur Geschäftsjahr) ---- */
+  const bew = bewegungen(jahr+'-01-01', jahr+'-12-31');
+  const kontenMit = typ => m().konten.filter(k=>k.typ===typ && saldo(k,bew)!==0).sort((a,b)=>a.nr.localeCompare(b.nr));
+  let html = `<p><b>${esc(m().name)}</b> – GuV ${jahr} (vorläufig, vor Ergebnisverwendung)</p><table><tbody>`;
+  let ertr=0, aufw=0;
+  html += `<tr class="grp"><td colspan="2">Erträge</td></tr>`;
+  for(const k of kontenMit('ERTRAG')){ const v=saldo(k,bew); ertr+=v; html+=`<tr><td>${k.nr} ${esc(k.name)}</td><td class="num">${eur(v)}</td></tr>`; }
+  html += `<tr class="grp"><td>Summe Erträge</td><td class="num">${eur(ertr)}</td></tr>`;
+  html += `<tr class="grp"><td colspan="2">Aufwendungen</td></tr>`;
+  for(const k of kontenMit('AUFWAND')){ const v=saldo(k,bew); aufw+=v; html+=`<tr><td>${k.nr} ${esc(k.name)}</td><td class="num">${eur(v)}</td></tr>`; }
+  html += `<tr class="grp"><td>Summe Aufwendungen</td><td class="num">${eur(aufw)}</td></tr>`;
+  html += `<tr class="sum"><td>Jahresüberschuss / -fehlbetrag</td><td class="num">${eur(ertr-aufw)}</td></tr>`;
+  $('guvTitel').textContent = 'Gewinn- und Verlustrechnung '+jahr;
+  $('guvTabelle').innerHTML = html + '</tbody></table>';
+
+  /* ---- Bilanz (kumuliert bis Stichtag) ---- */
+  const kum = bewegungen(null, stichtag);
+  const ergebnisKum = m().konten.filter(k=>k.typ==='ERTRAG').reduce((s,k)=>s+saldo(k,kum),0)
+                    - m().konten.filter(k=>k.typ==='AUFWAND').reduce((s,k)=>s+saldo(k,kum),0);
+  const seite = (titel, gruppen, extra) => {
+    let h = `<table><tbody><tr class="grp"><td colspan="2">${titel}</td></tr>`;
+    let sum = 0;
+    for(const g of gruppen){
+      const ks = m().konten.filter(k=>k.gruppe===g && (k.typ==='AKTIV'||k.typ==='PASSIV') && saldo(k,kum)!==0).sort((a,b)=>a.nr.localeCompare(b.nr));
+      if(!ks.length && !(extra && extra.gruppe===g)) continue;
+      h += `<tr class="grp"><td colspan="2">${GRUPPEN[g]}</td></tr>`;
+      for(const k of ks){ const v=saldo(k,kum); sum+=v; h+=`<tr><td>${k.nr} ${esc(k.name)}</td><td class="num">${eur(v)}</td></tr>`; }
+      if(extra && extra.gruppe===g){ sum+=extra.wert; h+=`<tr><td><i>${extra.name}</i></td><td class="num">${eur(extra.wert)}</td></tr>`; }
+    }
+    return {html:h, sum};
+  };
+  const akt = seite('AKTIVA', ['AV','UV']);
+  const pas = seite('PASSIVA', ['EK','RST','VB','SV'], {gruppe:'EK', name:'Bilanzergebnis (kumuliertes Jahres-/Vorjahresergebnis)', wert:ergebnisKum});
+  const diff = akt.sum - pas.sum;
+  $('bilanzTitel').textContent = 'Bilanz zum '+dDE(stichtag);
+  $('bilanzTabelle').innerHTML =
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div>${akt.html}<tr class="sum"><td>Summe Aktiva</td><td class="num">${eur(akt.sum)}</td></tr></tbody></table></div>
+      <div>${pas.html}<tr class="sum"><td>Summe Passiva</td><td class="num">${eur(pas.sum)}</td></tr></tbody></table></div>
+    </div>
+    <p class="hint" style="margin-top:10px">${diff===0?'✓ Bilanz ist ausgeglichen.':'⚠ Differenz Aktiva/Passiva: '+eurTxt(diff)+' € – Buchungen bzw. Eröffnungsbilanz (Konto 9000) prüfen.'}</p>`;
+}
+
+/* =================== Konten =================== */
+function renderKonten(){
+  aktualisiereGruppenSelect();
+  const bew = bewegungen(null, null);
+  let html = `<table><thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Typ</th><th>Gruppe/BWA</th><th>UStVA</th><th class="num">Saldo gesamt</th><th class="noprint"></th></tr></thead><tbody>`;
+  for(const k of [...m().konten].sort((a,b)=>a.nr.localeCompare(b.nr))){
+    const v = saldo(k,bew);
+    const benutzt = !!(bew[k.nr] && (bew[k.nr].s || bew[k.nr].h));
+    const gn = (k.typ==='AKTIV'||k.typ==='PASSIV') ? (GRUPPEN[k.gruppe]||k.gruppe) : (BWA_KAT.find(x=>x.id===k.gruppe)?.name||k.gruppe);
+    html += `<tr><td><b>${k.nr}</b></td><td>${esc(k.name)}</td><td>${k.typ}</td><td>${esc(gn)}</td><td>${k.ustkz||''}</td>
+      <td class="num">${v?eur(v):''}</td>
+      <td class="noprint"><button class="btn mini sec" onclick="kontoBearbeiten('${k.nr}')">✎</button>
+      ${benutzt?'':`<button class="btn mini err" onclick="kontoLoeschen('${k.nr}')">✕</button>`}</td></tr>`;
+  }
+  $('kontenTabelle').innerHTML = html + '</tbody></table>';
+}
+function aktualisiereGruppenSelect(){
+  const typ = $('kTyp').value;
+  $('kGruppe').innerHTML = (typ==='AKTIV'||typ==='PASSIV')
+    ? Object.entries(GRUPPEN).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')
+    : BWA_KAT.map(k=>`<option value="${k.id}">${k.name}</option>`).join('');
+}
+$('kTyp').onchange = aktualisiereGruppenSelect;
+function kontoSpeichern(){
+  const nr = $('kNr').value.trim(), name = $('kName').value.trim();
+  if(!/^\d{4}$/.test(nr)) return msg('kMsg','Kontonummer: 4 Ziffern (SKR03).');
+  if(!name) return msg('kMsg','Bitte Bezeichnung angeben.');
+  const k = konto(nr);
+  const neu = {nr, name, typ:$('kTyp').value, gruppe:$('kGruppe').value, ustkz:$('kKz').value};
+  if(k) Object.assign(k, neu); else m().konten.push(neu);
+  speichern(); renderKonten(); renderBuchenForm();
+  msg('kMsg', (k?'Konto aktualisiert: ':'Konto angelegt: ')+nr+' '+name, true);
+  $('kNr').value=''; $('kName').value='';
+}
+function kontoBearbeiten(nr){
+  const k = konto(nr); if(!k) return;
+  $('kNr').value=k.nr; $('kName').value=k.name; $('kTyp').value=k.typ;
+  aktualisiereGruppenSelect(); $('kGruppe').value=k.gruppe; $('kKz').value=k.ustkz||'';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function kontoLoeschen(nr){
+  if(!confirm('Konto '+nr+' löschen?')) return;
+  m().konten = m().konten.filter(k=>k.nr!==nr);
+  speichern(); renderKonten(); renderBuchenForm();
+}
+
+/* =================== Extras =================== */
+function renderExtras(){
+  $('festInfo').textContent = m().festBis ? 'Aktuell festgeschrieben bis: '+dDE(m().festBis) : 'Noch nichts festgeschrieben.';
+  if(!$('festDatum').value) $('festDatum').value = m().festBis || '';
+  $('mName').value = m().name;
+  fuelleJahre('dJahr');
+  $('dBerater').value = m().datev.berater||''; $('dMandant').value = m().datev.mandant||'';
+}
+function festschreiben(){
+  const d = $('festDatum').value;
+  if(!d) return msg('xMsg','Bitte Datum wählen.');
+  if(m().festBis && d < m().festBis) return msg('xMsg','Festschreibung kann nicht zurückgenommen werden (aktuell bis '+dDE(m().festBis)+').');
+  if(!confirm('Alle Buchungen bis einschließlich '+dDE(d)+' unwiderruflich festschreiben?')) return;
+  let n=0;
+  for(const b of m().buchungen) if(b.datum<=d && !b.fest){ b.fest=true; n++; }
+  m().festBis = d;
+  speichern(); renderExtras();
+  msg('xMsg', n+' Buchungen festgeschrieben bis '+dDE(d)+'.', true);
+}
+function exportJson(){
+  db.letztesBackup = new Date().toISOString();
+  speichern();
+  download('Fibu_Backup_'+heute()+'.json', JSON.stringify(db,null,1), 'application/json');
+  backupBanner();
+}
+function importJson(inp){
+  const f = inp.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if(!d || !Array.isArray(d.mandanten)) throw new Error('Format');
+      if(!confirm('Backup einspielen? Die aktuellen Daten in diesem Browser werden ÜBERSCHRIEBEN.')) return;
+      db = d; if(!db.mandanten.find(x=>x.id===db.aktiv)) db.aktiv = db.mandanten[0].id;
+      speichern(); initUI();
+      alert('Backup eingespielt.');
+    }catch(e){ alert('Datei konnte nicht gelesen werden (kein gültiges Fibu-Backup).'); }
+  };
+  r.readAsText(f); inp.value='';
+}
+function exportDatev(){
+  const jahr = $('dJahr').value;
+  m().datev = {berater:$('dBerater').value.trim(), mandant:$('dMandant').value.trim()};
+  speichern();
+  const bs = m().buchungen.filter(b=>b.datum.startsWith(jahr) && !b.storniert)
+              .sort((a,b)=>a.datum.localeCompare(b.datum));
+  const ts = new Date().toISOString().replace(/\D/g,'').slice(0,17);
+  const von = jahr+'0101', bis = jahr+'1231';
+  let out = `"EXTF";700;21;"Buchungsstapel";12;${ts};;"";"";"";"${m().datev.berater||'0'}";"${m().datev.mandant||'0'}";${jahr}0101;4;${von};${bis};"Fibu ${jahr}";"";1;0;0;"EUR";;"";;;"";;;"";""\r\n`;
+  out += 'Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext\r\n';
+  for(const b of bs){
+    const dd = b.datum.slice(8,10)+b.datum.slice(5,7);
+    out += [eurTxt(b.brutto).replace(/\./g,''), '"S"', '"EUR"', '', '', '', b.soll, b.haben,
+            '"'+(DATEV_BU[b.key]||'')+'"', dd, '"'+(b.beleg||'').slice(0,36)+'"', '', '',
+            '"'+b.text.replace(/"/g,'').slice(0,60)+'"'].join(';') + '\r\n';
+  }
+  download('EXTF_Buchungsstapel_'+jahr+'.csv', out, 'text/csv');
+}
+function download(name, inhalt, typ){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([inhalt], {type:typ+';charset=utf-8'}));
+  a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+
+/* =================== Mandanten =================== */
+function mandantNeu(){
+  const name = prompt('Name des neuen Mandanten (z. B. „Holding GmbH“):');
+  if(!name) return;
+  const mm = mandantNeuObj(name.trim());
+  db.mandanten.push(mm); db.aktiv = mm.id;
+  speichern(); initUI();
+}
+function mandantUmbenennen(){
+  const n = $('mName').value.trim();
+  if(!n) return;
+  m().name = n; speichern(); initUI(); zeigeTab('extras');
+}
+function mandantLoeschen(){
+  if(db.mandanten.length<2) return alert('Der letzte Mandant kann nicht gelöscht werden.');
+  if(!confirm('Mandant „'+m().name+'“ mit ALLEN Buchungen löschen? Vorher Backup exportieren!')) return;
+  if(prompt('Zur Bestätigung den Mandantennamen eintippen:')!==m().name) return alert('Abgebrochen.');
+  db.mandanten = db.mandanten.filter(x=>x.id!==db.aktiv);
+  db.aktiv = db.mandanten[0].id;
+  speichern(); initUI();
+}
+$('mandantSelect').onchange = e => { db.aktiv = e.target.value; speichern(); initUI(); };
+
+/* =================== Init =================== */
+function fuelleJahre(id){
+  const el = $(id), alt = el.value;
+  el.innerHTML = jahre().map(j=>`<option>${j}</option>`).join('');
+  if(alt && [...el.options].some(o=>o.value===alt)) el.value = alt;
+}
+function backupBanner(){
+  const el = $('backupBanner');
+  const hatBuchungen = db.mandanten.some(x=>x.buchungen.length);
+  if(!hatBuchungen){ el.style.display='none'; return; }
+  const tage = db.letztesBackup ? Math.floor((Date.now()-new Date(db.letztesBackup))/864e5) : null;
+  if(tage===null || tage>=7){
+    el.style.display='block';
+    el.innerHTML = '⚠ ' + (tage===null?'Noch kein Backup erstellt.':'Letztes Backup vor '+tage+' Tagen.') +
+      ' Daten liegen nur in diesem Browser! <button class="btn mini" onclick="exportJson()">Jetzt JSON-Backup herunterladen</button>';
+  } else el.style.display='none';
+}
+function initUI(){
+  $('mandantSelect').innerHTML = db.mandanten.map(x=>`<option value="${x.id}"${x.id===db.aktiv?' selected':''}>${esc(x.name)}</option>`).join('');
+  $('kopfInfo').textContent = m().buchungen.length + ' Buchungen' + (m().festBis ? ' · 🔒 fest bis '+dDE(m().festBis) : '');
+  renderBuchenForm(); renderLetzte();
+  const j = new Date().getFullYear();
+  if(!$('sVon').value){ $('sVon').value = j+'-01-01'; $('sBis').value = heute(); }
+  backupBanner();
+  const aktiverTab = document.querySelector('nav button.active')?.dataset.tab || 'buchen';
+  zeigeTab(aktiverTab);
+}
+document.addEventListener('keydown', e=>{
+  if(e.ctrlKey && e.key==='Enter' && document.querySelector('#tab-buchen.active')) buchungSpeichern();
+});
+window.addEventListener('change', e=>{
+  if(['jJahr','bwaJahr','uJahr','uZeitraum','aJahr'].includes(e.target.id)){
+    if(e.target.id==='jJahr') renderJournal();
+    if(e.target.id==='bwaJahr') renderBwa();
+    if(e.target.id==='uJahr'||e.target.id==='uZeitraum') renderUstva();
+    if(e.target.id==='aJahr'){ $('aStichtag').value=''; renderAbschluss(); }
+  }
+});
+initUI();
+</script>
+</body>
+</html>
