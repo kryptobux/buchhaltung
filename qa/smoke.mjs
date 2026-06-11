@@ -17,7 +17,8 @@ const check = (ok, label, detail = '') => {
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-page.on('dialog', d => d.accept(d.type() === 'prompt' ? 'SEED-Smoke' : undefined));
+let lastDialog = '';
+page.on('dialog', d => { lastDialog = d.message(); d.accept(d.type() === 'prompt' ? 'SEED-Smoke' : undefined); });
 await page.goto(APP);
 
 // --- 1. UI-Grundgerüst -----------------------------------------------------
@@ -114,6 +115,45 @@ await page.locator('#letzteBuchungen tr', { hasText: 'SEED-Handwerker' }).locato
 const lTxt = await page.getByTestId('letzte-buchungen').textContent();
 check(lTxt.includes('Storno-Beleg') && lTxt.includes('storniert'),
   'Storno erzeugt Gegenbuchung, Original als storniert markiert');
+
+// --- 10. Import-Schutz (B7): Festschreibung unangreifbar, Felder validiert ------
+await page.getByTestId('nav-extras').click();
+const fileInput = page.locator('#tab-extras input[type=file]');
+const importiere = async (name, obj) => {
+  await fileInput.setInputFiles({ name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(obj)) });
+  await page.waitForTimeout(400); // FileReader + Dialoge
+};
+const dbSnap = await page.evaluate(() => JSON.parse(JSON.stringify(db)));
+
+// 10a: Angriff — Backup, in dem die festgeschriebene Buchung fehlt
+const a1 = JSON.parse(JSON.stringify(dbSnap));
+const a1Seed = a1.mandanten.find(x => x.name === 'SEED-Smoke');
+a1Seed.buchungen = a1Seed.buchungen.filter(b => !b.fest);
+a1Seed.festBis = null;
+await importiere('angriff-festschreibung.json', a1);
+check(lastDialog.includes('GoBD'), 'Import ohne feste Buchungen → GoBD-Ablehnung', lastDialog.slice(0, 100));
+check(await page.evaluate(() => db.mandanten.find(x => x.name === 'SEED-Smoke').buchungen.some(b => b.fest)),
+  'Bestand nach Angriff 1 unverändert (feste Buchung noch da)');
+
+// 10b: Angriff — XSS-Payload als Kontonummer
+const a2 = JSON.parse(JSON.stringify(dbSnap));
+a2.mandanten.find(x => x.name === 'SEED-Smoke').buchungen[0].soll = '<img src=x onerror=alert(1)>';
+await importiere('angriff-xss.json', a2);
+check(lastDialog.includes('ungültig'), 'Import mit XSS-Kontonummer → Validierungs-Ablehnung', lastDialog.slice(0, 100));
+check(await page.evaluate(() => db.mandanten.every(x => x.buchungen.every(b => /^\d{4}$/.test(b.soll)))),
+  'Alle Kontonummern im Bestand weiterhin 4-stellig numerisch');
+
+// 10c: Unverändertes (valides) Backup wird weiterhin angenommen
+await importiere('valide.json', dbSnap);
+check(lastDialog.includes('eingespielt'), 'Valides Backup wird angenommen', lastDialog.slice(0, 100));
+check(await page.evaluate(() => db.mandanten.find(x => x.name === 'SEED-Smoke').buchungen.some(b => b.fest)),
+  'Nach validem Import: Daten konsistent');
+
+// --- 11. Korrupter localStorage wird gerettet statt still ersetzt ---------------
+await page.evaluate(() => localStorage.setItem(LS_KEY, '{kaputt!!'));
+await page.reload();
+check(await page.getByTestId('defekt-sichern').isVisible(), 'Banner mit Rettungs-Button bei korruptem Storage');
+check(await page.evaluate(() => db.mandanten.length >= 1), 'App startet trotz korrupter Daten (Seed-DB)');
 
 await page.evaluate(() => localStorage.clear()); // Hygiene (Profil ist ohnehin flüchtig)
 await browser.close();

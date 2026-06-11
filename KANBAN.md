@@ -2,15 +2,9 @@
 
 Regeln: WIP max. 1–2 pro Session · eine Karte = eine Aufgabe = ein Commit (Hash auf die Karte) · Befunde sofort als Karte mit Beleg. Anforderungs-IDs (A…/K…) → [ANFORDERUNGEN.md](ANFORDERUNGEN.md).
 
-> ⚠️ Bis Phase 1 abgeschlossen: produktiv buchen ok, aber **JSON-Import nicht benutzen** (hebelt Festschreibung aus, B7).
-
 ## 📥 Backlog (priorisiert)
 
 ### Phase 1 — GoBD-Härtung (vor produktiver Vollnutzung)
-
-#### B7 — Import-Schutz + Sanitizing [A04, A16, K2]
-`importJson` darf Festschreibung/feste Buchungen nie abschwächen (Abgleich mit Bestand, sonst Abbruch mit Begründung); Feld-Validierung + Escaping aller importierten Werte (fixt XSS K2); korrupter localStorage wird als `*.korrupt.json`-Download gerettet statt still durch Seed ersetzt.
-**Akzeptanz:** Import eines Alt-Backups gegen festgeschriebenen Bestand bricht ab (Beweis im Smoke); XSS-Payload im Backup rendert als Text. **Pfade:** `index.html` (`importJson`, Z.835 ff.) [App]
 
 #### B8 — Audit-Trail [A10, A09]
 Append-only Protokoll je Mandant: Änderung/Löschung nicht-festgeschriebener Buchungen (vorher/nachher), Kontenplan-Änderungen; Buchung erhält `geaendert`-Zeitstempel. Anzeige im Extras-Tab, Export im JSON-Backup enthalten.
@@ -92,13 +86,13 @@ Versionsmarker in `index.html` + `qa/deploy-check.ps1` grept ihn über HTTP von 
 #### K1 — UStVA ignoriert Direktbuchungen ohne Steuerschlüssel
 Kz 81/86/66 summieren nur `b.key`-Buchungen (`renderUstva` Z.685) → Bilanz und UStVA können auseinanderlaufen. Fix in B16. [Korrektheit]
 
-#### K2 — XSS über Import-JSON
-`b.soll/haben/key` ungeprüft in HTML (`buchungZeile` Z.557); Angriffsvektor manipuliertes Backup. Fix in B7. [Sicherheit]
-
 #### K4 — CSV-Journal: Belegfeld ungequotet
 Semikolon im Belegfeld zerschießt CSV-Zeilen (`exportJournalCsv` Z.590). Quick-Fix bei nächster Journal-Arbeit. [Klein]
 
 ## ✅ Läuft
+
+### 2026-06-11 — Phase 1
+- **B7 Import-Schutz + Sanitizing:** `validiereBackup` (alle Felder inkl. 4-stelliger Kontonummern → fixt K2/XSS), `importVerletztFestschreibung` (Import kann feste Buchungen/festBis nie entfernen, ändern oder entsperren), korrupter localStorage wird per Banner + Download gerettet statt still durch Seed ersetzt. Beweis: Smoke-Checks 23–30 (GoBD-Ablehnung, XSS-Ablehnung, valider Import ok, Rettungs-Banner). Commit: siehe `git log`.
 
 ### 2026-06-11 — Phase 0
 - **B1 QA-Grundgerüst:** `qa/smoke.mjs` (Playwright headless, 22 Checks: UI, Unit-Checks parseBetrag/buchungsZeilen/Soll=Haben-Invariante, Buchen mit VSt-Split, Journal, SuSa-Summengleichheit, UStVA Kz 66, Bilanz-Ausgeglichenheit, Festschreibungs-Sperre, Storno) + 14 `data-testid` in `index.html`. Lauf grün, Exit 0. Commit: siehe `git log`.

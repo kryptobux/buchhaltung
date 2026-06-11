@@ -360,9 +360,12 @@ function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now()+'-'
 function kontenNeu(){ return KONTEN_VORLAGE.map(k=>({nr:k[0],name:k[1],typ:k[2],gruppe:k[3],ustkz:k[4]||''})); }
 function mandantNeuObj(name){ return {id:uid(), name, konten:kontenNeu(), buchungen:[], festBis:null, belegNr:1, datev:{berater:'',mandant:''}}; }
 
-let db = null;
-try{ db = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+let db = null, defekteRohdaten = null;
+const rohJson = localStorage.getItem(LS_KEY);
+try{ db = JSON.parse(rohJson); }catch(e){ defekteRohdaten = rohJson; }
 if(!db || !Array.isArray(db.mandanten) || !db.mandanten.length){
+  // Beschädigte/unerwartete Bestandsdaten NIE still verwerfen – Rohstring zur Rettung aufheben
+  if(rohJson && rohJson!=='null' && !defekteRohdaten) defekteRohdaten = rohJson;
   db = {version:1, aktiv:null, mandanten:[mandantNeuObj('Immobilien VV GmbH'), mandantNeuObj('Holding GmbH')], letztesBackup:null};
   db.aktiv = db.mandanten[0].id;
 }
@@ -832,18 +835,76 @@ function exportJson(){
   download('Fibu_Backup_'+heute()+'.json', JSON.stringify(db,null,1), 'application/json');
   backupBanner();
 }
+/* Import-Härtung (GoBD): Validierung aller Felder + Schutz der Festschreibung.
+   Ein Import darf festgeschriebene Buchungen nie entfernen, verändern oder entsperren. */
+function kernfelder(b){ return [b.datum, b.beleg||'', b.text, b.soll, b.haben, b.brutto, b.key||'', b.netto, b.steuer, JSON.stringify(b.zeilen)]; }
+function validiereBackup(d){
+  const fehler = [];
+  const istKto = v => /^\d{4}$/.test(String(v));
+  const istDatum = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v));
+  const istId = v => typeof v==='string' && /^[\w-]{1,64}$/.test(v);
+  const optStr = v => v==null || typeof v==='string';
+  if(!d || typeof d!=='object' || Array.isArray(d)) return ['Datei ist kein Fibu-Backup-Objekt.'];
+  if(d.version!==undefined && d.version>1) return ['Backup stammt aus einer neueren App-Version ('+d.version+') – bitte App aktualisieren.'];
+  if(!Array.isArray(d.mandanten) || !d.mandanten.length) return ['Keine Mandanten enthalten.'];
+  d.mandanten.forEach((mm,i)=>{
+    const wo = 'Mandant '+(i+1)+(typeof mm?.name==='string' ? ' („'+mm.name.slice(0,30)+'")' : '');
+    if(!mm || typeof mm!=='object'){ fehler.push(wo+': kein Objekt.'); return; }
+    if(!istId(mm.id)) fehler.push(wo+': ungültige ID.');
+    if(typeof mm.name!=='string' || !mm.name.trim()) fehler.push(wo+': Name fehlt.');
+    if(mm.festBis!=null && !istDatum(mm.festBis)) fehler.push(wo+': festBis ungültig.');
+    if(!Array.isArray(mm.konten) || !mm.konten.length) fehler.push(wo+': Kontenplan fehlt.');
+    else mm.konten.forEach(k=>{
+      if(!k || !istKto(k.nr) || typeof k.name!=='string' || !['AKTIV','PASSIV','AUFWAND','ERTRAG'].includes(k.typ))
+        fehler.push(wo+': Konto „'+String(k&&k.nr).slice(0,12)+'" ungültig.');
+    });
+    if(!Array.isArray(mm.buchungen)) fehler.push(wo+': Buchungsliste fehlt.');
+    else mm.buchungen.forEach(b=>{
+      const ok = b && istId(b.id) && istDatum(b.datum) && typeof b.text==='string' && optStr(b.beleg) &&
+        istKto(b.soll) && istKto(b.haben) && (b.key||'') in STEUER &&
+        Number.isInteger(b.brutto) && Number.isInteger(b.netto) && Number.isInteger(b.steuer) &&
+        (b.stornoVon==null || istId(b.stornoVon)) &&
+        Array.isArray(b.zeilen) && b.zeilen.length>=2 &&
+        b.zeilen.every(z=>z && istKto(z.kto) && Number.isInteger(z.s) && Number.isInteger(z.h)) &&
+        b.zeilen.reduce((a,z)=>a+z.s,0) === b.zeilen.reduce((a,z)=>a+z.h,0);
+      if(!ok) fehler.push(wo+': Buchung „'+String((b&&(b.beleg||b.id))||'?').slice(0,20)+'" ungültig.');
+    });
+  });
+  return fehler;
+}
+function importVerletztFestschreibung(neu){
+  for(const alt of db.mandanten){
+    const feste = alt.buchungen.filter(b=>b.fest);
+    if(!feste.length && !alt.festBis) continue;
+    const k = neu.mandanten.find(x=>x.id===alt.id);
+    if(!k) return 'Mandant „'+alt.name+'" mit festgeschriebenen Buchungen fehlt im Backup.';
+    if(alt.festBis && (!k.festBis || k.festBis < alt.festBis))
+      return 'Mandant „'+alt.name+'": Festschreibung bis '+dDE(alt.festBis)+' würde zurückgenommen.';
+    for(const b of feste){
+      const nb = k.buchungen.find(x=>x.id===b.id);
+      if(!nb || !nb.fest) return 'Mandant „'+alt.name+'": festgeschriebene Buchung „'+(b.beleg||b.id)+'" fehlt im Backup oder wäre nicht mehr festgeschrieben.';
+      if(JSON.stringify(kernfelder(nb)) !== JSON.stringify(kernfelder(b)))
+        return 'Mandant „'+alt.name+'": festgeschriebene Buchung „'+(b.beleg||b.id)+'" wäre inhaltlich verändert.';
+    }
+  }
+  return null;
+}
 function importJson(inp){
   const f = inp.files[0]; if(!f) return;
   const r = new FileReader();
   r.onload = () => {
-    try{
-      const d = JSON.parse(r.result);
-      if(!d || !Array.isArray(d.mandanten)) throw new Error('Format');
-      if(!confirm('Backup einspielen? Die aktuellen Daten in diesem Browser werden ÜBERSCHRIEBEN.')) return;
-      db = d; if(!db.mandanten.find(x=>x.id===db.aktiv)) db.aktiv = db.mandanten[0].id;
-      speichern(); initUI();
-      alert('Backup eingespielt.');
-    }catch(e){ alert('Datei konnte nicht gelesen werden (kein gültiges Fibu-Backup).'); }
+    let d = null;
+    try{ d = JSON.parse(r.result); }catch(e){}
+    const fehler = d===null ? ['Datei ist kein gültiges JSON.'] : validiereBackup(d);
+    if(fehler.length) return alert('Backup ABGELEHNT – ungültiger Inhalt:\n• '+fehler.slice(0,5).join('\n• ')+(fehler.length>5?'\n…':''));
+    const verstoss = importVerletztFestschreibung(d);
+    if(verstoss) return alert('Backup ABGELEHNT – GoBD-Schutz:\n'+verstoss+'\n\nFestgeschriebene Buchungen dürfen durch einen Import nicht verändert, entfernt oder entsperrt werden (§ 146 Abs. 4 AO).');
+    if(!confirm('Backup einspielen? Die aktuellen Daten in diesem Browser werden ÜBERSCHRIEBEN.')) return;
+    db = d; if(typeof db.version!=='number') db.version = 1;
+    if(!db.mandanten.find(x=>x.id===db.aktiv)) db.aktiv = db.mandanten[0].id;
+    defekteRohdaten = null;
+    speichern(); initUI();
+    alert('Backup eingespielt.');
   };
   r.readAsText(f); inp.value='';
 }
@@ -901,8 +962,18 @@ function fuelleJahre(id){
   el.innerHTML = jahre().map(j=>`<option>${j}</option>`).join('');
   if(alt && [...el.options].some(o=>o.value===alt)) el.value = alt;
 }
+function defekteDatenSichern(){
+  download('Fibu_DEFEKTE_DATEN_'+heute()+'.json.txt', defekteRohdaten ?? '', 'text/plain');
+}
 function backupBanner(){
   const el = $('backupBanner');
+  if(defekteRohdaten){
+    el.style.display = 'block';
+    el.innerHTML = '🛑 Beim Laden wurden <b>beschädigte Bestandsdaten</b> gefunden – die App ist mit einer leeren Datenbank gestartet. Die alten Rohdaten sind noch nicht verloren: ' +
+      '<button class="btn mini" data-testid="defekt-sichern" onclick="defekteDatenSichern()">Beschädigte Daten herunterladen</button> ' +
+      'Bitte Datei sichern (sie wird beim nächsten Speichern im Browser überschrieben).';
+    return;
+  }
   const hatBuchungen = db.mandanten.some(x=>x.buchungen.length);
   if(!hatBuchungen){ el.style.display='none'; return; }
   const tage = db.letztesBackup ? Math.floor((Date.now()-new Date(db.letztesBackup))/864e5) : null;
