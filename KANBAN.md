@@ -6,12 +6,6 @@ Regeln: WIP max. 1–2 pro Session · eine Karte = eine Aufgabe = ein Commit (Ha
 
 ## 📥 Backlog (priorisiert)
 
-### Phase 0 — Testfundament
-
-#### B1 — QA-Grundgerüst: Playwright-Smoke + data-testid + Unit-Harness
-`qa/smoke.*`: lädt `index.html` headless, prüft Tab-Rendering, legt im SEED-Mandanten Testbuchung an (Soll=Haben im Journal), SuSa-Summengleichheit, räumt auf. `data-testid` an Tabs/Buchen-Form/Journal. Dazu `qa/unit.mjs` für reine Funktionen (parseBetrag, buchungsZeilen-Splitlogik, Rundung). Exit 0 = grün. (absorbiert Alt-B6)
-**Akzeptanz:** beide Skripte lokal grün; Doku im Kopf. **Pfade:** `qa/`, `index.html` [QA]
-
 ### Phase 1 — GoBD-Härtung (vor produktiver Vollnutzung)
 
 #### B7 — Import-Schutz + Sanitizing [A04, A16, K2]
@@ -105,6 +99,9 @@ Kz 81/86/66 summieren nur `b.key`-Buchungen (`renderUstva` Z.685) → Bilanz und
 Semikolon im Belegfeld zerschießt CSV-Zeilen (`exportJournalCsv` Z.590). Quick-Fix bei nächster Journal-Arbeit. [Klein]
 
 ## ✅ Läuft
+
+### 2026-06-11 — Phase 0
+- **B1 QA-Grundgerüst:** `qa/smoke.mjs` (Playwright headless, 22 Checks: UI, Unit-Checks parseBetrag/buchungsZeilen/Soll=Haben-Invariante, Buchen mit VSt-Split, Journal, SuSa-Summengleichheit, UStVA Kz 66, Bilanz-Ausgeglichenheit, Festschreibungs-Sperre, Storno) + 14 `data-testid` in `index.html`. Lauf grün, Exit 0. Commit: siehe `git log`.
 
 ### 2026-06-11 — Recherche & Plan
 - **Funktions-Benchmark 8 Anbieter** (sevDesk, Lexware, BHButler, WISO, Papierkram, FastBill, Collmex, easybill) → [FUNKTIONEN.md](FUNKTIONEN.md): Eigenbau hat Bilanz+Mandantenfähigkeit, die der halbe Markt nicht hat; B18/B19 hochgestuft, B21/B22 neu. Commit: siehe `git log`.

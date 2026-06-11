@@ -1,8 +1,8 @@
 # STATE
 
 - **Prod:** GitHub Pages noch NICHT aktiv; `main` @ kryptobux/buchhaltung = App + Doku + ANFORDERUNGEN.md.
-- **Aktueller Task:** Recherche + Gap-Analyse (ANFORDERUNGEN.md) + Markt-Benchmark (FUNKTIONEN.md) fertig — **wartet auf Freigabe des Plans**.
-- **Nächster Schritt (nach Freigabe):** B1 QA-Grundgerüst, dann Phase 1 GoBD-Härtung (B7–B12).
+- **Aktueller Task:** B1 QA-Grundgerüst ✅ (qa/smoke.mjs, 22 Checks grün) — Phase 0 fertig.
+- **Nächster Schritt:** Phase 1 GoBD-Härtung, beginnend mit B7 Import-Schutz.
 - **Operator-Aktionen:**
   - Plan in ANFORDERUNGEN.md §E freigeben/anpassen.
   - Steuerberater-Fragen ANFORDERUNGEN.md §D (UStVA-Befreiung, Holding § 267a, GewSt-Kürzung).

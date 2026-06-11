@@ -6,6 +6,9 @@ buchungen.csv
 # Lokale Claude-Einstellungen
 .claude/settings.local.json
 
+# QA-Tooling
+qa/node_modules/
+
 # Betriebssystem
 Thumbs.db
 desktop.ini

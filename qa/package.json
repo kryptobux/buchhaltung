@@ -1,0 +1,9 @@
+{
+  "name": "buchhaltung-qa",
+  "private": true,
+  "type": "module",
+  "description": "QA-Skripte (Smoke/Unit) fuer die Buchhaltungs-App. Exit 0 = gruen.",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

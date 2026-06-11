@@ -70,20 +70,20 @@
 
 <header class="noprint">
   <h1>📒 GmbH-Buchhaltung <span style="font-weight:400;font-size:13px;opacity:.7">SKR03</span></h1>
-  <select id="mandantSelect" title="Mandant wechseln"></select>
-  <button onclick="mandantNeu()">+ Mandant</button>
+  <select id="mandantSelect" data-testid="mandant-select" title="Mandant wechseln"></select>
+  <button data-testid="mandant-neu" onclick="mandantNeu()">+ Mandant</button>
   <span id="kopfInfo" style="font-size:12.5px;opacity:.75;margin-left:auto"></span>
 </header>
 
 <nav class="noprint">
-  <button data-tab="buchen" class="active">Buchen</button>
-  <button data-tab="journal">Journal</button>
-  <button data-tab="susa">SuSa</button>
-  <button data-tab="bwa">BWA</button>
-  <button data-tab="ustva">UStVA</button>
-  <button data-tab="abschluss">GuV / Bilanz</button>
-  <button data-tab="konten">Konten</button>
-  <button data-tab="extras">Backup &amp; Mehr</button>
+  <button data-tab="buchen" data-testid="nav-buchen" class="active">Buchen</button>
+  <button data-tab="journal" data-testid="nav-journal">Journal</button>
+  <button data-tab="susa" data-testid="nav-susa">SuSa</button>
+  <button data-tab="bwa" data-testid="nav-bwa">BWA</button>
+  <button data-tab="ustva" data-testid="nav-ustva">UStVA</button>
+  <button data-tab="abschluss" data-testid="nav-abschluss">GuV / Bilanz</button>
+  <button data-tab="konten" data-testid="nav-konten">Konten</button>
+  <button data-tab="extras" data-testid="nav-extras">Backup &amp; Mehr</button>
 </nav>
 
 <main>
@@ -94,25 +94,25 @@
   <div class="card">
     <h2 id="buchenTitel">Neue Buchung</h2>
     <div class="grid g6">
-      <div><label>Datum</label><input type="date" id="bDatum"></div>
-      <div><label>Belegnummer</label><input id="bBeleg" placeholder="z. B. 2026-001"></div>
-      <div style="grid-column:span 2"><label>Buchungstext</label><input id="bText" placeholder="z. B. Miete Whg. EG Juni 2026"></div>
-      <div><label>Betrag (brutto) €</label><input id="bBetrag" placeholder="0,00" inputmode="decimal"></div>
-      <div><label>Steuerschlüssel</label><select id="bSteuer"></select></div>
+      <div><label>Datum</label><input type="date" id="bDatum" data-testid="buchen-datum"></div>
+      <div><label>Belegnummer</label><input id="bBeleg" data-testid="buchen-beleg" placeholder="z. B. 2026-001"></div>
+      <div style="grid-column:span 2"><label>Buchungstext</label><input id="bText" data-testid="buchen-text" placeholder="z. B. Miete Whg. EG Juni 2026"></div>
+      <div><label>Betrag (brutto) €</label><input id="bBetrag" data-testid="buchen-betrag" placeholder="0,00" inputmode="decimal"></div>
+      <div><label>Steuerschlüssel</label><select id="bSteuer" data-testid="buchen-steuer"></select></div>
     </div>
     <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:10px">
-      <div><label>Sollkonto</label><input id="bSoll" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
-      <div><label>Habenkonto</label><input id="bHaben" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
+      <div><label>Sollkonto</label><input id="bSoll" data-testid="buchen-soll" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
+      <div><label>Habenkonto</label><input id="bHaben" data-testid="buchen-haben" list="kontenListe" placeholder="Konto-Nr. oder Name tippen…"></div>
     </div>
     <datalist id="kontenListe"></datalist>
     <p class="hint">Konvention: <b>Vorsteuer</b>-Schlüssel bei Eingangsrechnungen (Aufwand im Soll, z. B. „4801 an 1200“) – Netto wird automatisch herausgerechnet und die Vorsteuer auf 1576/1571 gebucht. <b>Umsatzsteuer</b>-Schlüssel bei Erlösen (z. B. „1200 an 8400“) – USt landet auf 1776/1771. Steuerfreie Vermietung (§ 4 Nr. 12 UStG): ohne Steuerschlüssel auf 8110 buchen.</p>
-    <div class="msg" id="bMsg"></div>
-    <button class="btn" id="bSpeichern" onclick="buchungSpeichern()">Buchen (Strg+Enter)</button>
+    <div class="msg" id="bMsg" data-testid="buchen-msg"></div>
+    <button class="btn" id="bSpeichern" data-testid="buchen-speichern" onclick="buchungSpeichern()">Buchen (Strg+Enter)</button>
     <button class="btn sec" id="bAbbruch" style="display:none" onclick="bearbeitenAbbrechen()">Abbrechen</button>
   </div>
   <div class="card">
     <h2>Letzte Buchungen</h2>
-    <div class="scroll" id="letzteBuchungen"></div>
+    <div class="scroll" id="letzteBuchungen" data-testid="letzte-buchungen"></div>
   </div>
 </section>
 
@@ -126,7 +126,7 @@
       <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
       <button class="btn sec" onclick="exportJournalCsv()">⬇ CSV</button>
     </div>
-    <div class="scroll" id="journalTabelle" style="margin-top:10px"></div>
+    <div class="scroll" id="journalTabelle" data-testid="journal-tabelle" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -140,7 +140,7 @@
       <button class="btn" onclick="renderSusa()">Anzeigen</button>
       <button class="btn sec" onclick="window.print()">🖨 Drucken</button>
     </div>
-    <div class="scroll" id="susaTabelle" style="margin-top:10px"></div>
+    <div class="scroll" id="susaTabelle" data-testid="susa-tabelle" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -219,8 +219,8 @@
     <h2>Festschreibung (GoBD)</h2>
     <p class="hint">Festgeschriebene Buchungen können nicht mehr geändert oder gelöscht werden – nur noch per Stornobuchung korrigiert. Spätestens mit Abgabe der UStVA für den jeweiligen Zeitraum festschreiben.</p>
     <div class="flex">
-      <div><label>Festschreiben bis einschließlich</label><input type="date" id="festDatum"></div>
-      <button class="btn warn" onclick="festschreiben()">🔒 Festschreiben</button>
+      <div><label>Festschreiben bis einschließlich</label><input type="date" id="festDatum" data-testid="fest-datum"></div>
+      <button class="btn warn" data-testid="fest-button" onclick="festschreiben()">🔒 Festschreiben</button>
       <span class="hint" id="festInfo"></span>
     </div>
     <div class="msg" id="xMsg"></div>
