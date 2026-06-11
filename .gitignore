@@ -1,0 +1,11 @@
+# Vertrauliche Echtdaten — NIE committen (Repo ist public)
+belege/
+buchungen.csv
+*.backup.json
+
+# Lokale Claude-Einstellungen
+.claude/settings.local.json
+
+# Betriebssystem
+Thumbs.db
+desktop.ini
