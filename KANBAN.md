@@ -60,22 +60,30 @@ SuSa als CSV (E-Bilanz-Kontennachweis, Pflicht ab WJ 2025): Konto, Bezeichnung, 
 Warnung in der UStVA bei Direktbuchungen auf Erlös-/Steuerkonten ohne Steuerschlüssel; Hinweis beim Buchen mit VSt-Schlüssel im VV-Mandanten (kein VSt-Abzug bei steuerfreier Vermietung § 15 Abs. 2 UStG).
 **Akzeptanz:** beide Warnfälle im Smoke nachgestellt. **Pfade:** `index.html` (`renderUstva` Z.666, `buchungSpeichern`) [App]
 
+#### B18 — Beleg↔Buchung-Verknüpfung [A14] *(aus Phase 3 hochgestuft — Benchmark: notwendig)*
+Feld „Belegdatei" je Buchung (Dateiname in `belege/<Jahr>/`); Anzeige im Journal; Konvention Dateiname = Belegnummer.
+**Pfade:** `index.html` [App]
+
+#### B19 — Buchungsvorlagen [A43] *(aus Phase 3 hochgestuft — Benchmark: notwendig bei Mieten/Raten)*
+Wiederkehrende Buchungen (Miete, Hausgeld, Darlehensrate Zins/Tilgung) als benannte Vorlagen mit 1-Klick-Übernahme + Monatsfortschaltung.
+**Pfade:** `index.html` [App]
+
 ### Phase 3 — Betrieb & Komfort
 
 #### B4′ — Verfahrensdokumentation [A11, A14, A15, A18]
 `VERFAHRENSDOKUMENTATION.md`, 4 Teile (GoBD Tz 151 ff.): allgemein, Anwender, Technik, Betrieb. Inkl. Belegablage `belege/<Jahr>/<BelegNr>_<Name>.pdf`, E-Rechnungs-XML-Aufbewahrung, Backup-/Restore-Prozess mit Restore-Test.
 **Akzeptanz:** Entwurf vollständig, User-Review angefordert. [Doku]
 
-#### B18 — Beleg↔Buchung-Verknüpfung [A14]
-Optionales Feld „Belegdatei" je Buchung (Dateiname in `belege/`); Anzeige im Journal.
+#### B21 — Anlagenspiegel light + AfA-Automatik [A32, FUNKTIONEN.md D6] *(neu aus Benchmark)*
+Anlagen-Tab: Anlagegüter (AK, Datum, Nutzungsdauer/§ 7 Abs. 4-Satz), jährlicher AfA-Buchungsvorschlag per Klick, Anlagenspiegel-Ansicht (E-Bilanz-Pflichtteil ab WJ 2028).
 **Pfade:** `index.html` [App]
 
-#### B19 — Buchungsvorlagen [A43]
-Wiederkehrende Buchungen (Miete, Hausgeld, Darlehensrate) als benannte Vorlagen mit 1-Klick-Übernahme.
+#### B22 — E-Rechnungs-Ablage/Viewer [A15, FUNKTIONEN.md D5] *(neu aus Benchmark)*
+XRechnung-/ZUGFeRD-XML lokal auswählen → Kerndaten anzeigen (Aussteller, Betrag, USt), Buchungsvorschlag vorbefüllen, Hinweis auf Original-XML-Aufbewahrung in `belege/`.
 **Pfade:** `index.html` [App]
 
 #### B20 — Bank-CSV-Import [A42]
-CSV-Import (Spalten-Mapping) mit Duplikatserkennung, Vorschlag von Gegenkonten aus Historie.
+CSV-Import (Spalten-Mapping) mit Duplikatserkennung, Vorschlag von Gegenkonten aus Buchungshistorie (einfache Lernfunktion).
 **Pfade:** `index.html` [App]
 
 #### B3 — Pages-Deploy-Beweis + Versionsmarker
@@ -99,6 +107,7 @@ Semikolon im Belegfeld zerschießt CSV-Zeilen (`exportJournalCsv` Z.590). Quick-
 ## ✅ Läuft
 
 ### 2026-06-11 — Recherche & Plan
+- **Funktions-Benchmark 8 Anbieter** (sevDesk, Lexware, BHButler, WISO, Papierkram, FastBill, Collmex, easybill) → [FUNKTIONEN.md](FUNKTIONEN.md): Eigenbau hat Bilanz+Mandantenfähigkeit, die der halbe Markt nicht hat; B18/B19 hochgestuft, B21/B22 neu. Commit: siehe `git log`.
 - **Anforderungs-Recherche + Ist-Analyse** (2 parallele Subagenten): 47 Anforderungen mit MUSS/SOLL/KANN + Quellen, 12 Code-Befunde mit Zeilen-Belegen → [ANFORDERUNGEN.md](ANFORDERUNGEN.md); Backlog auf Phasen 0–3 umgestellt. Commit: siehe `git log`.
 
 ### 2026-06-11 — Setup

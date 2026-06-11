@@ -1,7 +1,7 @@
 # STATE
 
 - **Prod:** GitHub Pages noch NICHT aktiv; `main` @ kryptobux/buchhaltung = App + Doku + ANFORDERUNGEN.md.
-- **Aktueller Task:** Recherche + Gap-Analyse fertig (ANFORDERUNGEN.md) — **wartet auf Freigabe des Plans §E**.
+- **Aktueller Task:** Recherche + Gap-Analyse (ANFORDERUNGEN.md) + Markt-Benchmark (FUNKTIONEN.md) fertig — **wartet auf Freigabe des Plans**.
 - **Nächster Schritt (nach Freigabe):** B1 QA-Grundgerüst, dann Phase 1 GoBD-Härtung (B7–B12).
 - **Operator-Aktionen:**
   - Plan in ANFORDERUNGEN.md §E freigeben/anpassen.

@@ -118,4 +118,10 @@ aber JSON-Import nicht benutzen** (hebelt Festschreibung aus).
 - B20 Bank-CSV-Import mit Duplikatserkennung [A42]
 - B3 Pages-Deploy-Beweis (nach Pages-Aktivierung)
 
-Bewusst NICHT geplant: Anlagenbuchhaltung (A32, manuelle AfA dokumentiert), OPOS, Kassenbuch (bar-frei arbeiten), ELSTER-API (manuelle Übertragung reicht; ggf. Befreiung).
+Bewusst NICHT geplant: OPOS, Kassenbuch (bar-frei arbeiten), ELSTER-API (manuelle Übertragung reicht; ggf. Befreiung), OCR, In-App-E-Bilanz, Mehrbenutzer (architekturbedingt).
+
+**Update 2026-06-11:** Funktions-Benchmark über 8 Marktprodukte → [FUNKTIONEN.md](FUNKTIONEN.md).
+Konsequenzen: B18 (Beleg-Verknüpfung) und B19 (Buchungsvorlagen) in Phase 2 hochgestuft;
+neu B21 (Anlagenspiegel light + AfA-Automatik, revidiert die A32-Entscheidung) und
+B22 (E-Rechnungs-Ablage/Viewer). Bemerkenswert: Bilanz + Mandantenfähigkeit des Eigenbaus
+bieten 6 von 8 Marktprodukten nicht bzw. nur gegen Doppellizenz.
